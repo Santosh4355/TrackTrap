@@ -1,0 +1,67 @@
+---
+title: "Using a manually downloaded CIMIS CSV with TrackTrap"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Using a manually downloaded CIMIS CSV with TrackTrap}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
+```
+
+## When to use this
+
+Use `weather_source = "cimis_csv"` when you want ground truth station data instead
+ of a gridded product (Daymet/Open-Meteo), or when you are working offline with 
+pre-defined weather data.
+
+## 1. Download the report
+
+At the [CIMIS website](https://cimis.water.ca.gov): **Reports** > select
+your station > report type **Daily** > units **English (°F)** > export as
+CSV. The file will include `Date`, `Max Air Temp (F)`, and `Min Air Temp (F)`.
+
+## 2. Know how `read.csv()` renames columns
+
+`read.csv()` censors headers: `Max Air Temp (F)` becomes
+`Max.Air.Temp..F.`, and `Min Air Temp (F)` becomes `Min.Air.Temp..F.` —
+exactly the names `calc_pest_phenology()` expects.
+
+```{r, eval = FALSE}
+names(read.csv("my_station_daily.csv"))
+#> [1] "Date" "Max.Air.Temp..F." "Min.Air.Temp..F." ...
+```
+
+## 3. Confirm the date format
+
+CIMIS exports dates as `MM/DD/YYYY`. 
+
+## 4. Run `calc_pest_phenology()`
+
+Set `weather_source = "cimis_csv"` exactly (not `"cimis"`). `lat`/`lon` are
+ignored in this mode since the station location is already implied in
+the file.
+
+```{r, eval = FALSE}
+library(TrackTrap)
+
+trap_df <- data.frame(
+  date = as.Date(c("2024-04-01", "2024-04-08", "2024-04-15", "2024-04-22")),
+  trap_counts = c(0, 0, 3, 9)
+)
+
+result <- calc_pest_phenology(
+  trap_df, pest = "OLFF",
+  weather_source = "cimis_csv",
+  cimis_csv_path = "my_station_daily.csv"
+)
+```
+
+## 5. Plot it
+
+```{r, eval = FALSE}
+plot_phenology_trend(result)
+```
+
