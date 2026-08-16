@@ -12,7 +12,9 @@
 
 5. `cimis_csv_path` documentation and validation. The manual CIMIS workflow was previously documented only as "Path to the CIMIS csv file." Now documents: required column names after `read.csv()` mangling (`Date`, `Max.Air.Temp..F.`, `Min.Air.Temp..F.`), required `MM/DD/YYYY` date format, that `lat`/`lon` are ignored when `cimis_csv_path` is supplied, and that `weather_source` must be the exact string `"cimis_csv"`. Added explicit input validation so mismatched arguments, missing columns, or incomprehensible dates raise informative errors instead of propagating silent `NA`s. Added a new vignette, `cimis-manual-workflow`, walking through the complete manual CIMIS workflow end to end.
 
-6. Plot titles now include year and coordinates. `plot_trap_phenology()` titles now display the trapping year and latitude/longitude of the site, pulled automatically from the attributes `calc_pest_phenology()` attaches to its output.
+6. The package now accepts information to calculate GDD for unlisted pests in the database, or if users intend to use custom inputs for the GDD calculation and visualization.
+
+7. Plot titles now include year and coordinates. `plot_trap_phenology()` titles now display the trapping year and latitude/longitude of the site, pulled automatically from the attributes `calc_pest_phenology()` attaches to its output.
 
 # TrackTrap 1.0.0
 
