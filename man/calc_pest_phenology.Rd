@@ -2,7 +2,7 @@
 % Please edit documentation in R/phenology.R
 \name{calc_pest_phenology}
 \alias{calc_pest_phenology}
-\title{Calculate Pest Phenology}
+\title{Calculate pest phenology from trap and weather data}
 \usage{
 calc_pest_phenology(
   trap_data,
@@ -12,33 +12,35 @@ calc_pest_phenology(
   weather_source = "open_meteo",
   cimis_csv_path = NULL,
   custom_lower = NULL,
-  custom_upper = NULL
+  custom_upper = NULL,
+  custom_flight_interval = NULL,
+  custom_pest_label = NULL
 )
 }
 \arguments{
-\item{trap_data}{Data frame with \code{date} and \code{trap_counts}.}
+\item{trap_data}{Data frame with \code{date} and \code{trap_counts} columns.}
 
-\item{pest}{Pest code from \code{pest_thresholds} (e.g. "OLFF", "CM").
-Leave \code{NULL} and provide \code{custom_lower}/\code{custom_upper}
-for a pest not in the database.}
+\item{pest}{Pest code (e.g. "FAW"). Optional if custom_lower/custom_upper given.}
 
-\item{lat, lon}{Trap location. Required for "open_meteo" and "daymet".}
+\item{lat}{Latitude (required for open_meteo/daymet).}
 
-\item{weather_source}{Either "open_meteo", "daymet", "cimis_csv".}
+\item{lon}{Longitude (required for open_meteo/daymet).}
 
-\item{cimis_csv_path}{Path to a CIMIS daily report (Fahrenheit),
-required when \code{weather_source = "cimis_csv"}.}
+\item{weather_source}{"open_meteo", "daymet", or "cimis_csv".}
 
-\item{custom_lower, custom_upper}{Override or provide the developmental
-thresholds in Fahrenheit.}
+\item{cimis_csv_path}{Path to CIMIS CSV (required if weather_source = "cimis_csv").}
+
+\item{custom_lower}{Optional override for lower threshold (°F).}
+
+\item{custom_upper}{Optional override for upper threshold (°F).}
+
+\item{custom_flight_interval}{Optional override for flight interval (DD).}
+
+\item{custom_pest_label}{Optional label display if pest is not listed in the database.}
 }
 \value{
-\code{trap_data} merged to daily weather, with
-\code{cumulative_dd} (running seasonal degree-days) and
-\code{cumulative_dd_from_biofix} (nullified at first trap catch).
-Uses \code{lat}, \code{lon}, and \code{year} as attributes for
-\code{plot_trap_phenology()}.
+Data frame with cumulative DD columns and lat/lon/year/flight_interval_dd/pest_label attributes.
 }
 \description{
-Calculate Pest Phenology
+Calculate pest phenology from trap and weather data
 }

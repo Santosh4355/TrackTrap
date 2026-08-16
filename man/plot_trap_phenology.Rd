@@ -2,25 +2,36 @@
 % Please edit documentation in R/phenology.R
 \name{plot_trap_phenology}
 \alias{plot_trap_phenology}
-\title{Plot Trap Phenology with Flight Markers}
+\title{Plot trap phenology against accumulated degree-days}
 \usage{
 plot_trap_phenology(
   pheno_data,
   pest = NULL,
   year = NULL,
   lat = NULL,
-  lon = NULL
+  lon = NULL,
+  custom_flight_interval = NULL,
+  custom_pest_label = NULL
 )
 }
 \arguments{
-\item{pheno_data}{Output of \code{calc_pest_phenology()}.}
+\item{pheno_data}{Output of calc_pest_phenology().}
 
-\item{pest}{Pest code, used to explore the display name and flight
-interval. Optional.}
+\item{pest}{Optional pest code for database lookup (title, flight interval).}
 
-\item{year, lat, lon}{Override the plot title's year/coordinates. If
-omitted, retrieved from \code{pheno_data}'s attributes.}
+\item{year}{Optional year label; defaults to pheno_data's "year" attribute.}
+
+\item{lat}{Optional latitude for subtitle; defaults to pheno_data's "lat" attribute.}
+
+\item{lon}{Optional longitude for subtitle; defaults to pheno_data's "lon" attribute.}
+
+\item{custom_flight_interval}{Optional override for flight-line spacing (DD).}
+
+\item{custom_pest_label}{Optional title label if pest is not listed in the database.}
+}
+\value{
+A ggplot object.
 }
 \description{
-Plot Trap Phenology with Flight Markers
+Plot trap phenology against accumulated degree-days
 }

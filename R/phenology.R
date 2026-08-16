@@ -39,44 +39,67 @@ fetch_open_meteo <- function(lat, lon, start_date,
   weather_data
 }
 
-#' Calculate Pest Phenology
+#' Calculate pest phenology from trap and weather data
 #'
-#' @param trap_data Data frame with \code{date} and \code{trap_counts}.
-#' @param pest Pest code from \code{pest_thresholds} (e.g. "OLFF", "CM").
-#'   Leave \code{NULL} and provide \code{custom_lower}/\code{custom_upper}
-#'   for a pest not in the database.
-#' @param lat,lon Trap location. Required for "open_meteo" and "daymet".
-#' @param weather_source Either "open_meteo", "daymet", "cimis_csv".
-#' @param cimis_csv_path Path to a CIMIS daily report (Fahrenheit),
-#'   required when \code{weather_source = "cimis_csv"}.
-#' @param custom_lower,custom_upper Override or provide the developmental
-#'   thresholds in Fahrenheit.
-#' @return \code{trap_data} merged to daily weather, with
-#'   \code{cumulative_dd} (running seasonal degree-days) and
-#'   \code{cumulative_dd_from_biofix} (nullified at first trap catch).
-#'   Uses \code{lat}, \code{lon}, and \code{year} as attributes for
-#'   \code{plot_trap_phenology()}.
+#' @param trap_data Data frame with `date` and `trap_counts` columns.
+#' @param pest Pest code (e.g. "FAW"). Optional if custom_lower/custom_upper given.
+#' @param lat Latitude (required for open_meteo/daymet).
+#' @param lon Longitude (required for open_meteo/daymet).
+#' @param weather_source "open_meteo", "daymet", or "cimis_csv".
+#' @param cimis_csv_path Path to CIMIS CSV (required if weather_source = "cimis_csv").
+#' @param custom_lower Optional override for lower threshold (°F).
+#' @param custom_upper Optional override for upper threshold (°F).
+#' @param custom_flight_interval Optional override for flight interval (DD).
+#' @param custom_pest_label Optional label display if pest is not listed in the database.
+#' @return Data frame with cumulative DD columns and lat/lon/year/flight_interval_dd/pest_label attributes.
 #' @export
 calc_pest_phenology <- function(trap_data, pest = NULL, lat = NULL, lon = NULL,
                                 weather_source = "open_meteo", cimis_csv_path = NULL,
-                                custom_lower = NULL, custom_upper = NULL) {
+                                custom_lower = NULL, custom_upper = NULL,
+                                custom_flight_interval = NULL,
+                                custom_pest_label = NULL) {
+  
+  pest_label <- NULL
   
   if (!is.null(pest)) {
-    pest_info <- TrackTrap::pest_thresholds[
-      TrackTrap::pest_thresholds$pest_code == toupper(pest), ]
-    if (nrow(pest_info) == 0) {
-      stop("Pest code not found in database. Use custom_lower and custom_upper.")
+    pest_info <- TrackTrap::pest_thresholds[TrackTrap::pest_thresholds$pest_code ==
+                                              toupper(pest), ]
+    pest_found <- nrow(pest_info) == 1
+    
+    if (!pest_found && (is.null(custom_lower) || is.null(custom_upper))) {
+      stop("Pest code not found in database. Provide both custom_lower and custom_upper (and optionally custom_pest_label) for an unlisted pest.")
     }
-    lower_thresh <- if (is.null(custom_lower)) pest_info$lower_thresh else custom_lower
-    upper_thresh <- if (is.null(custom_upper)) pest_info$upper_thresh else custom_upper
+    
+    lower_thresh <- if (!is.null(custom_lower)) custom_lower else pest_info$lower_thresh
+    upper_thresh <- if (!is.null(custom_upper)) custom_upper else pest_info$upper_thresh
+    
+    flight_interval <- if (!is.null(custom_flight_interval)) {
+      custom_flight_interval
+    } else if (pest_found) {
+      pest_info$flight_interval_dd
+    } else {
+      NA
+    }
+    
+    pest_label <- if (pest_found) {
+      sprintf("%s (%s)", pest_info$pest_name, pest_info$pest_code)
+    } else if (!is.null(custom_pest_label)) {
+      sprintf("%s (%s)", custom_pest_label, toupper(pest))
+    } else {
+      toupper(pest)
+    }
+    
     message(sprintf("Using thresholds for %s: Lower = %s F, Upper = %s F",
-                    pest_info$pest_name, lower_thresh, upper_thresh))
+                    pest_label, lower_thresh, upper_thresh))
+    
   } else {
     if (is.null(custom_lower) || is.null(custom_upper)) {
       stop("You must provide either a 'pest' code (e.g., 'OLFF', 'NOW', 'CM') OR both 'custom_lower' and 'custom_upper'.")
     }
     lower_thresh <- custom_lower
     upper_thresh <- custom_upper
+    flight_interval <- custom_flight_interval
+    pest_label <- if (!is.null(custom_pest_label)) custom_pest_label else "Custom Pest"
     message(sprintf("Using custom thresholds: Lower = %s F, Upper = %s F",
                     lower_thresh, upper_thresh))
   }
@@ -136,7 +159,7 @@ calc_pest_phenology <- function(trap_data, pest = NULL, lat = NULL, lon = NULL,
       
       parsed_dates <- as.Date(raw$Date, format = "%m/%d/%Y")
       if (all(is.na(parsed_dates))) {
-        stop("cimis_csv_path Date column could not be parsed as MM/DD/YYYY. Check that the file wasn't reformatted by a spreadsheet program.")
+        stop("cimis_csv_path Date column could not be parsed as MM/DD/YYYY.")
       }
       
       out <- data.frame(
@@ -175,20 +198,27 @@ calc_pest_phenology <- function(trap_data, pest = NULL, lat = NULL, lon = NULL,
   attr(final_df, "lat")  <- lat
   attr(final_df, "lon")  <- lon
   attr(final_df, "year") <- data_year
+  attr(final_df, "flight_interval_dd") <- flight_interval
+  attr(final_df, "pest_label") <- pest_label
   
   final_df
 }
 
-#' Plot Trap Phenology with Flight Markers
+#' Plot trap phenology against accumulated degree-days
 #'
-#' @param pheno_data Output of \code{calc_pest_phenology()}.
-#' @param pest Pest code, used to explore the display name and flight
-#'   interval. Optional.
-#' @param year,lat,lon Override the plot title's year/coordinates. If
-#'   omitted, retrieved from \code{pheno_data}'s attributes.
+#' @param pheno_data Output of calc_pest_phenology().
+#' @param pest Optional pest code for database lookup (title, flight interval).
+#' @param year Optional year label; defaults to pheno_data's "year" attribute.
+#' @param lat Optional latitude for subtitle; defaults to pheno_data's "lat" attribute.
+#' @param lon Optional longitude for subtitle; defaults to pheno_data's "lon" attribute.
+#' @param custom_flight_interval Optional override for flight-line spacing (DD).
+#' @param custom_pest_label Optional title label if pest is not listed in the database.
+#' @return A ggplot object.
 #' @export
 plot_trap_phenology <- function(pheno_data, pest = NULL, year = NULL,
-                                lat = NULL, lon = NULL) {
+                                lat = NULL, lon = NULL,
+                                custom_flight_interval = NULL,
+                                custom_pest_label = NULL) {
   
   pheno_data$cumulative_dd_from_biofix <- as.numeric(pheno_data$cumulative_dd_from_biofix)
   
@@ -203,8 +233,18 @@ plot_trap_phenology <- function(pheno_data, pest = NULL, year = NULL,
   
   pest_info <- NULL
   if (!is.null(pest)) {
-    pest_info <- TrackTrap::pest_thresholds[
-      TrackTrap::pest_thresholds$pest_code == toupper(pest), ]
+    pest_info <- TrackTrap::pest_thresholds[TrackTrap::pest_thresholds$pest_code ==
+                                              toupper(pest), ]
+  }
+  
+  interval <- NA
+  if (!is.null(custom_flight_interval)) {
+    interval <- custom_flight_interval
+  } else if (!is.null(attr(pheno_data, "flight_interval_dd")) &&
+             !is.na(attr(pheno_data, "flight_interval_dd"))) {
+    interval <- attr(pheno_data, "flight_interval_dd")
+  } else if (!is.null(pest_info) && nrow(pest_info) == 1) {
+    interval <- pest_info$flight_interval_dd
   }
   
   year_suffix <- if (!is.null(year)) sprintf(" (%s)", year) else ""
@@ -214,6 +254,10 @@ plot_trap_phenology <- function(pheno_data, pest = NULL, year = NULL,
   
   base_title <- if (!is.null(pest_info) && nrow(pest_info) == 1) {
     sprintf("%s (%s) Phenology", pest_info$pest_name, pest_info$pest_code)
+  } else if (!is.null(attr(pheno_data, "pest_label"))) {
+    sprintf("%s Phenology", attr(pheno_data, "pest_label"))
+  } else if (!is.null(custom_pest_label)) {
+    sprintf("%s Phenology", custom_pest_label)
   } else if (!is.null(pest)) {
     sprintf("%s Phenology", toupper(pest))
   } else {
@@ -235,8 +279,7 @@ plot_trap_phenology <- function(pheno_data, pest = NULL, year = NULL,
       axis.title = ggplot2::element_text(face = "bold")
     )
   
-  if (!is.null(pest_info) && nrow(pest_info) == 1 && !is.na(pest_info$flight_interval_dd)) {
-    interval <- pest_info$flight_interval_dd
+  if (!is.null(interval) && !is.na(interval)) {
     flights  <- interval * 0:3
     labels   <- c("1st Flight\n(Biofix)", "2nd Flight", "3rd Flight", "4th Flight")
     y_pos    <- max(pheno_data$trap_counts, na.rm = TRUE) * seq(0.95, 0.65, length.out = 4)
@@ -247,8 +290,8 @@ plot_trap_phenology <- function(pheno_data, pest = NULL, year = NULL,
         ggplot2::annotate("text", x = flights[i] + interval * 0.03, y = y_pos[i],
                           label = labels[i], hjust = 0, color = "blue", size = 3.5)
     }
-  } else if (!is.null(pest)) {
-    message("Note: No generation interval defined in database for this pest. Flight lines skipped.")
+  } else if (!is.null(pest) || !is.null(custom_pest_label)) {
+    message("Note: No generation interval defined or provided for this pest. Flight lines skipped.")
   }
   
   p
