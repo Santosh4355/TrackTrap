@@ -2,7 +2,7 @@
 % Please edit documentation in R/phenology.R
 \name{calc_pest_phenology}
 \alias{calc_pest_phenology}
-\title{Calculate pest phenology from trap and weather data}
+\title{Calculate Pest Phenology from Trap Counts and Weather Data}
 \usage{
 calc_pest_phenology(
   trap_data,
@@ -18,29 +18,43 @@ calc_pest_phenology(
 )
 }
 \arguments{
-\item{trap_data}{Data frame with \code{date} and \code{trap_counts} columns.}
+\item{trap_data}{A data frame with columns \code{date} (character, \code{M/D/YYYY}
+format) and \code{trap_counts} (numeric).}
 
-\item{pest}{Pest code (e.g. "FAW"). Optional if custom_lower/custom_upper given.}
+\item{pest}{Character. A pest code (e.g., \code{"OLFF"}) checked against the
+built-in \code{pest_thresholds} database. Optional if both \code{custom_lower}
+and \code{custom_upper} are provided.}
 
-\item{lat}{Latitude (required for open_meteo/daymet).}
+\item{lat}{Numeric. Latitude of the trap location. Required when
+\code{weather_source} is \code{"open_meteo"} or \code{"daymet"}.}
 
-\item{lon}{Longitude (required for open_meteo/daymet).}
+\item{lon}{Numeric. Longitude of the trap location. Required when
+\code{weather_source} is \code{"open_meteo"} or \code{"daymet"}.}
 
-\item{weather_source}{"open_meteo", "daymet", or "cimis_csv".}
+\item{weather_source}{Character. One of \code{"open_meteo"}, \code{"daymet"}, or
+\code{"cimis_csv"}. Defaults to \code{"open_meteo"}.}
 
-\item{cimis_csv_path}{Path to CIMIS CSV (required if weather_source = "cimis_csv").}
+\item{cimis_csv_path}{Character. File path to a manually downloaded CIMIS
+daily CSV report. Required when \code{weather_source = "cimis_csv"}.}
 
-\item{custom_lower}{Optional override for lower threshold (°F).}
+\item{custom_lower}{Numeric. Custom lower developmental threshold (°F).
+Overrides the database value if \code{pest} is also provided.}
 
-\item{custom_upper}{Optional override for upper threshold (°F).}
+\item{custom_upper}{Numeric. Custom upper developmental threshold (°F).
+Pass \code{NA} explicitly (or leave the database value as \code{NA}) to calculate
+degree-days without an upper cutoff.}
 
-\item{custom_flight_interval}{Optional override for flight interval (DD).}
+\item{custom_flight_interval}{Numeric. Custom degree-day interval between
+pest generations/flights, used for plotting flight lines.}
 
-\item{custom_pest_label}{Optional label display if pest is not listed in the database.}
+\item{custom_pest_label}{Character. Custom label used in plot titles when
+\code{pest} is not found in the built-in database.}
 }
 \value{
-Data frame with cumulative DD columns and lat/lon/year/flight_interval_dd/pest_label attributes.
+A data frame combining \code{trap_data} with merged weather and
+degree-day columns, including \code{cumulative_dd} and
+\code{cumulative_dd_from_biofix}.
 }
 \description{
-Calculate pest phenology from trap and weather data
+Calculate Pest Phenology from Trap Counts and Weather Data
 }

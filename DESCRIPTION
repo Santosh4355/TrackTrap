@@ -1,12 +1,12 @@
 Package: TrackTrap
 Title: Model Cumulative Growing Degree-Days for Pest Monitoring
-Version: 1.0.1
+Version: 1.1.0
 Authors@R: c(
   person("Santosh", "Bhandari", email = "santoshbhandari4556@gmail.com", role = c("aut", "cre")),
   person("Lalit", "Kharel", email = "klalitkharel@gmail.com", role = c("aut")),
   person("Mahesh", "Ghimire", email = "maesghimire@gmail.com", role = c("aut"))
   )
-Description: Pest monitoring is crucial, especially during the early season, to understand the distribution and the proliferation of the target pest. Raw count data from pest monitoring/traps can be coupled with derived environmental variables such as growing degree-day ('GDD') to get useful insights about the pest phenology. This package pulls temperature data from the 'Daymet' application programming interface ('API', <https://daymet.ornl.gov>), or 'Open-Meteo' ('API', <https://open-meteo.com/>) or manual user-supplied CSV file from the California Irrigation Management Information System ('CIMIS', <https://cimis.water.ca.gov>), for a user-specified time period and calculates cumulative growing degree-day using built-in pest-specific developmental thresholds for 90 economic pests, or using custom values for unlisted pests, or overrididing values with user supplied thresholds. Users provide intended date range, pest of concern, and the geographic coordinates of the trap location to track pest emergence and phenology throughout the growing season.
+Description: Pest monitoring is crucial, especially during the early season, to understand the distribution and the proliferation of the target pest. Raw count data from pest monitoring/traps can be coupled with derived environmental variables such as growing degree-day ('GDD') to get useful insights about the pest phenology. This package pulls temperature data from the 'Daymet' application programming interface ('API', <https://daymet.ornl.gov>), or 'Open-Meteo' ('API', <https://open-meteo.com/>) or manual user-supplied CSV file from the California Irrigation Management Information System ('CIMIS', <https://cimis.water.ca.gov>), for a user-specified time period and calculates cumulative growing degree-days. Users provide intended date range, pest of concern, and the geographic coordinates of the trap location to track pest emergence and phenology throughout the growing season.
 License: MIT + file LICENSE
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
@@ -16,7 +16,6 @@ LazyData: true
 Imports:
     daymetr,
     dplyr,
-    degday,
     ggplot2,
     httr,
     magrittr,

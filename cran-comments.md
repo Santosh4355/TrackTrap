@@ -1,6 +1,6 @@
 ## Submission of a new version
 
-* This is the updated version 1.0.1, third release of TrackTrap package.
+* This is the revised version TrackTrap v1.1.0, updated release of TrackTrap package.
 * local CPU Windows 11 install, R 4.5.2
 * win-builder (devel)
 

@@ -2,7 +2,7 @@
 % Please edit documentation in R/phenology.R
 \name{plot_trap_phenology}
 \alias{plot_trap_phenology}
-\title{Plot trap phenology against accumulated degree-days}
+\title{Plot Pest Phenology as Trap Catch vs. Accumulated Degree-Days}
 \usage{
 plot_trap_phenology(
   pheno_data,
@@ -15,23 +15,32 @@ plot_trap_phenology(
 )
 }
 \arguments{
-\item{pheno_data}{Output of calc_pest_phenology().}
+\item{pheno_data}{A data frame produced by \code{\link[=calc_pest_phenology]{calc_pest_phenology()}},
+containing \code{cumulative_dd_from_biofix} and \code{trap_counts} columns.}
 
-\item{pest}{Optional pest code for database lookup (title, flight interval).}
+\item{pest}{Character. A pest code used to explore the pest name and
+flight interval from the built-in database, if not already present as
+attributes on \code{pheno_data}.}
 
-\item{year}{Optional year label; defaults to pheno_data's "year" attribute.}
+\item{year}{Character or numeric. Year to display in the plot title.
+Defaults to the year attribute stored on \code{pheno_data}.}
 
-\item{lat}{Optional latitude for subtitle; defaults to pheno_data's "lat" attribute.}
+\item{lat}{Numeric. Latitude to display in the plot title. Defaults to
+the \code{lat} attribute stored on \code{pheno_data}.}
 
-\item{lon}{Optional longitude for subtitle; defaults to pheno_data's "lon" attribute.}
+\item{lon}{Numeric. Longitude to display in the plot title. Defaults to
+the \code{lon} attribute stored on \code{pheno_data}.}
 
-\item{custom_flight_interval}{Optional override for flight-line spacing (DD).}
+\item{custom_flight_interval}{Numeric. Degree-day interval between
+generations/flights, used to draw flight lines. Overrides any interval
+stored on \code{pheno_data} or looked up via \code{pest}.}
 
-\item{custom_pest_label}{Optional title label if pest is not listed in the database.}
+\item{custom_pest_label}{Character. Custom pest label for the plot title
+when \code{pest} is not found in the built-in database.}
 }
 \value{
-A ggplot object.
+A \code{ggplot} object.
 }
 \description{
-Plot trap phenology against accumulated degree-days
+Plot Pest Phenology as Trap Catch vs. Accumulated Degree-Days
 }

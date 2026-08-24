@@ -2,22 +2,25 @@
 % Please edit documentation in R/phenology.R
 \name{fetch_open_meteo}
 \alias{fetch_open_meteo}
-\title{Fetch Open-Meteo Data}
+\title{Fetch Historical and Real-Time Weather Data from Open-Meteo}
 \usage{
 fetch_open_meteo(lat, lon, start_date, end_date = as.character(Sys.Date()))
 }
 \arguments{
-\item{lat}{Latitude.}
+\item{lat}{Numeric. Latitude of the location.}
 
-\item{lon}{Longitude.}
+\item{lon}{Numeric. Longitude of the location.}
 
-\item{start_date}{Start date, "YYYY-MM-DD".}
+\item{start_date}{Character. Start date in \code{"YYYY-MM-DD"} format.}
 
-\item{end_date}{End date, "YYYY-MM-DD". Defaults to today.}
+\item{end_date}{Character. End date in \code{"YYYY-MM-DD"} format. Defaults to
+the current system date.}
 }
 \value{
-A data frame with Date, tmax, tmin (Fahrenheit).
+A data frame with columns \code{Date}, \code{tmax}, and \code{tmin} (degrees
+Fahrenheit).
 }
 \description{
-Fetch Open-Meteo Data
+Retrieves daily maximum and minimum temperature data for a given location
+and date range from the Open-Meteo historical weather archive API.
 }

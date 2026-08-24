@@ -13,55 +13,68 @@ knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
 
 ## When to use this
 
-Use `weather_source = "cimis_csv"` when you want ground truth station data instead
- of a gridded product (Daymet/Open-Meteo), or when you are working offline with 
-pre-defined weather data.
+Use `weather_source = "cimis_csv"` when you intend to use station data downloaded manually instead
+of a gridded product (Daymet/Open-Meteo), or when you are working offline and have the pre-downloaded data.
 
 ## 1. Download the report
 
 At the [CIMIS website](https://cimis.water.ca.gov): **Reports** > select
 your station > report type **Daily** > units **English (°F)** > export as
-CSV. The file will include `Date`, `Max Air Temp (F)`, and `Min Air Temp (F)`.
+CSV. The file will include `Date`, `Max Air Temp (F)`, and `Min Air Temp (F)`,
+along with other columns that `calc_pest_phenology()` ignores.
 
 ## 2. Know how `read.csv()` renames columns
 
-`read.csv()` censors headers: `Max Air Temp (F)` becomes
-`Max.Air.Temp..F.`, and `Min Air Temp (F)` becomes `Min.Air.Temp..F.` —
-exactly the names `calc_pest_phenology()` expects.
+`read.csv()` processes headers that contain spaces or parentheses:
+`Max Air Temp (F)` becomes `Max.Air.Temp..F.`, and `Min Air Temp (F)` becomes
+`Min.Air.Temp..F.` — exactly the names `calc_pest_phenology()` expects.
 
-```{r, eval = FALSE}
-names(read.csv("my_station_daily.csv"))
-#> [1] "Date" "Max.Air.Temp..F." "Min.Air.Temp..F." ...
+```{r, eval = TRUE}
+example_path <- system.file("/extdata", "example_cimis_daily.csv", package = "TrackTrap")
+names(read.csv(example_path))
 ```
 
 ## 3. Confirm the date format
 
-CIMIS exports dates as `MM/DD/YYYY`. 
+CIMIS exports dates as `MM/DD/YYYY`, which `calc_pest_phenology()` accepts
+directly — no manual conversion needed. Date should be
+input as `M/D/YYYY` or `MM/DD/YYYY` character strings (e.g. `"4/1/2024"`),
+not as pre-converted `Date` objects. Any date that doesn't match this format
+will cause the function to stop and name the offending value.
 
 ## 4. Run `calc_pest_phenology()`
 
-Set `weather_source = "cimis_csv"` exactly (not `"cimis"`). `lat`/`lon` are
-ignored in this mode since the station location is already implied in
-the file.
+Set `weather_source = "cimis_csv"` exactly (not `"cimis"`).
 
-```{r, eval = FALSE}
+`calc_pest_phenology()` does **not** read station location from the CSV — it
+only extracts `Date`, `Max.Air.Temp..F.`, and `Min.Air.Temp..F.` from the file.
+`lat`/`lon` arguments passed to `calc_pest_phenology()` are ignored in this
+mode (a message is printed to confirm this). If `lat`/`lon` are omitted, the
+result's `lat`/`lon` attributes remain `NULL`, and `plot_trap_phenology()`
+will omit the location title unless coordinates are provided directly to
+that plotting call instead (see Step 5).
+
+```{r, eval = TRUE}
 library(TrackTrap)
 
 trap_df <- data.frame(
-  date = as.Date(c("2024-04-01", "2024-04-08", "2024-04-15", "2024-04-22")),
+  date = c("4/1/2024", "4/8/2024", "4/15/2024", "4/22/2024"),
   trap_counts = c(0, 0, 3, 9)
 )
 
 result <- calc_pest_phenology(
   trap_df, pest = "OLFF",
   weather_source = "cimis_csv",
-  cimis_csv_path = "my_station_daily.csv"
+  cimis_csv_path = example_path
 )
 ```
 
 ## 5. Plot it
 
-```{r, eval = FALSE}
-plot_phenology_trend(result)
-```
+Because location is not carried through from the CIMIS CSV, provide `lat` and
+`lon` explicitly to `plot_trap_phenology()` if you want the station location
+shown in the plot title.
 
+```{r, eval = TRUE, fig.width = 7, fig.height = 5}
+plot_trap_phenology(result, lat = 36.3302, lon = -119.2921)
+```
