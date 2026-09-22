@@ -14,7 +14,7 @@ knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
 ## When to use this
 
 Use `weather_source = "cimis_csv"` when you intend to use station data downloaded manually instead
-of a gridded product (Daymet/Open-Meteo), or when you are working offline and have the pre-downloaded data.
+of a gridded product (Daymet/Open-Meteo), or when you are working offline and have pre-downloaded data.
 
 ## 1. Download the report
 
@@ -37,8 +37,8 @@ names(read.csv(example_path))
 ## 3. Confirm the date format
 
 CIMIS exports dates as `MM/DD/YYYY`, which `calc_pest_phenology()` accepts
-directly — no manual conversion needed. Date should be
-input as `M/D/YYYY` or `MM/DD/YYYY` character strings (e.g. `"4/1/2024"`),
+directly — no manual conversion needed. Dates should be
+input as `M/D/YYYY` or `MM/DD/YYYY` character strings (e.g., `"4/1/2024"`),
 not as pre-converted `Date` objects. Any date that doesn't match this format
 will cause the function to stop and name the offending value.
 
@@ -46,13 +46,15 @@ will cause the function to stop and name the offending value.
 
 Set `weather_source = "cimis_csv"` exactly (not `"cimis"`).
 
-`calc_pest_phenology()` does **not** read station location from the CSV — it
+`calc_pest_phenology()` does **not** read station coordinates from the CSV — it
 only extracts `Date`, `Max.Air.Temp..F.`, and `Min.Air.Temp..F.` from the file.
-`lat`/`lon` arguments passed to `calc_pest_phenology()` are ignored in this
-mode (a message is printed to confirm this). If `lat`/`lon` are omitted, the
-result's `lat`/`lon` attributes remain `NULL`, and `plot_trap_phenology()`
-will omit the location title unless coordinates are provided directly to
-that plotting call instead (see Step 5).
+
+Because weather data are loaded directly from the local file rather than an API,
+`lat` and `lon` are not required for temperature retrieval. However, any `lat`
+and `lon` passed to `calc_pest_phenology()` are preserved as metadata attributes
+on the output object so that `plot_trap_phenology()` can automatically display
+the location in the plot title. If omitted at this stage, the attributes are set
+to `NULL`.
 
 ```{r, eval = TRUE}
 library(TrackTrap)
@@ -62,19 +64,27 @@ trap_df <- data.frame(
   trap_counts = c(0, 0, 3, 9)
 )
 
+# Coordinates passed here are stored as attributes for plotting
 result <- calc_pest_phenology(
   trap_df, pest = "OLFF",
   weather_source = "cimis_csv",
-  cimis_csv_path = example_path
+  cimis_csv_path = example_path,
+  lat = 36.3302,
+  lon = -119.2921
 )
 ```
 
 ## 5. Plot it
 
-Because location is not carried through from the CIMIS CSV, provide `lat` and
-`lon` explicitly to `plot_trap_phenology()` if you want the station location
-shown in the plot title.
+If coordinates were provided to `calc_pest_phenology()`, `plot_trap_phenology()`
+reads them automatically from the data attributes and displays the location in
+the title. Alternatively, if coordinates were omitted during calculation, you
+can provide `lat` and `lon` directly to `plot_trap_phenology()`.
 
 ```{r, eval = TRUE, fig.width = 7, fig.height = 5}
-plot_trap_phenology(result, lat = 36.3302, lon = -119.2921)
+# Coordinates are automatically read from the result attributes:
+plot_trap_phenology(result)
+
+# Or coordinates can be explicitly provided or overridden here:
+# plot_trap_phenology(result, lat = 36.3302, lon = -119.2921)
 ```
