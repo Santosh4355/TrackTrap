@@ -1,0 +1,12 @@
+^TrackTrap\.Rproj$
+^\.Rproj\.user$
+^LICENSE\.md$
+^pest_database\.R$
+^test\.R$
+^cran-comments\.md$
+^CRAN-SUBMISSION$
+^data-raw$
+^doc$
+^Meta$
+^vignette$
+^check_summary_v1\.1\.0\.txt$
