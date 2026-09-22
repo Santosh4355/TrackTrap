@@ -135,6 +135,17 @@ calc_pest_phenology <- function(trap_data, pest = NULL, lat = NULL, lon = NULL,
     }
   }
   
+  if (!"trap_counts" %in% names(trap_data)) {
+    stop("trap_data must contain a 'trap_counts' column.", call. = FALSE)
+  }
+  if (!is.numeric(trap_data$trap_counts)) {
+    num_counts <- suppressWarnings(as.numeric(trap_data$trap_counts))
+    if (anyNA(num_counts) && !all(is.na(trap_data$trap_counts))) {
+      stop("Column 'trap_counts' contains non-numeric values. All counts must be numeric.", call. = FALSE)
+    }
+    trap_data$trap_counts <- num_counts
+  }
+  
   trap_data$date <- parse_trap_date(trap_data$date, arg = "trap_data$date")
   fetch_start <- as.character(min(trap_data$date, na.rm = TRUE))
   fetch_end   <- as.character(max(trap_data$date, na.rm = TRUE))
@@ -171,7 +182,7 @@ calc_pest_phenology <- function(trap_data, pest = NULL, lat = NULL, lon = NULL,
     "cimis_csv" = {
       if (is.null(cimis_csv_path)) stop("Must provide cimis_csv_path when using 'cimis_csv'.")
       if (!is.null(lat) || !is.null(lon)) {
-        message("Note: lat/lon are ignored for 'cimis_csv'; TrackTrap does not extract station location from the CIMIS CSV. Provide lat/lon directly to plot_trap_phenology() if a location title is needed.")
+        message("Note: lat/lon are not used for weather lookup in 'cimis_csv', but will be preserved as attributes for plotting.")
       }
       message("Loading local CIMIS CSV data...")
       raw <- utils::read.csv(cimis_csv_path, stringsAsFactors = FALSE)
@@ -183,10 +194,20 @@ calc_pest_phenology <- function(trap_data, pest = NULL, lat = NULL, lon = NULL,
                      paste(missing_cols, collapse = ", "), paste(names(raw), collapse = ", ")))
       }
       
+      parse_temp_col <- function(vals, col_name) {
+        num_vals <- suppressWarnings(as.numeric(vals))
+        bad <- unique(vals[is.na(num_vals) & !is.na(vals) & trimws(vals) != ""])
+        if (length(bad) > 0) {
+          stop(sprintf("Non-numeric values found in '%s': %s. All temperature entries must be valid numbers.",
+                       col_name, paste(bad, collapse = ", ")), call. = FALSE)
+        }
+        num_vals
+      }
+      
       out <- data.frame(
         Date = parse_trap_date(raw$Date, arg = "cimis_csv_path Date column"),
-        tmax = suppressWarnings(as.numeric(raw$Max.Air.Temp..F.)),
-        tmin = suppressWarnings(as.numeric(raw$Min.Air.Temp..F.))
+        tmax = parse_temp_col(raw$Max.Air.Temp..F., "Max.Air.Temp..F."),
+        tmin = parse_temp_col(raw$Min.Air.Temp..F., "Min.Air.Temp..F.")
       )
       message(sprintf("CIMIS CSV load complete: %d days read from %s.", nrow(out), basename(cimis_csv_path)))
       out
@@ -307,8 +328,7 @@ plot_trap_phenology <- function(pheno_data, pest = NULL, year = NULL, lat = NULL
   
   if (!is.null(interval) && !is.na(interval) && interval > 0) {
     max_dd <- suppressWarnings(max(pheno_data$cumulative_dd_from_biofix, na.rm = TRUE))
-    n_flights <- max(1, ceiling(max_dd / interval) + 1)
-    flights <- interval * (0:(n_flights - 1))
+    flights <- seq(0, max_dd, by = interval)
     ordinals <- c("1st", "2nd", "3rd", "4th", "5th", "6th", "7th", "8th")
     labels <- vapply(seq_along(flights), function(i) {
       ord <- if (i <= length(ordinals)) ordinals[i] else paste0(i, "th")
