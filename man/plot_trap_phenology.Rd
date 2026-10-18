@@ -2,7 +2,7 @@
 % Please edit documentation in R/phenology.R
 \name{plot_trap_phenology}
 \alias{plot_trap_phenology}
-\title{Plot Pest Phenology as Trap Catch vs. Accumulated Degree-Days}
+\title{Plot trap catches against the calculated DD index}
 \usage{
 plot_trap_phenology(
   pheno_data,
@@ -10,37 +10,34 @@ plot_trap_phenology(
   year = NULL,
   lat = NULL,
   lon = NULL,
+  custom_thermal_requirement = NULL,
+  repeat_markers = FALSE,
   custom_flight_interval = NULL,
   custom_pest_label = NULL
 )
 }
 \arguments{
-\item{pheno_data}{A data frame produced by \code{\link[=calc_pest_phenology]{calc_pest_phenology()}},
-containing \code{cumulative_dd_from_biofix} and \code{trap_counts} columns.}
+\item{pheno_data}{Output of calc_pest_phenology().}
 
-\item{pest}{Character. A pest code used to explore the pest name and
-flight interval from the built-in database, if not already present as
-attributes on \code{pheno_data}.}
+\item{pest}{Optional label only; never used to retrieve marker intervals.}
 
-\item{year}{Character or numeric. Year to display in the plot title.
-Defaults to the year attribute stored on \code{pheno_data}.}
+\item{year, lat, lon}{Optional title settings.}
 
-\item{lat}{Numeric. Latitude to display in the plot title. Defaults to
-the \code{lat} attribute stored on \code{pheno_data}.}
+\item{custom_thermal_requirement}{Optional user-defined marker in Fahrenheit DD.}
 
-\item{lon}{Numeric. Longitude to display in the plot title. Defaults to
-the \code{lon} attribute stored on \code{pheno_data}.}
+\item{repeat_markers}{If TRUE, show user-defined multiples; default FALSE.}
 
-\item{custom_flight_interval}{Numeric. Degree-day interval between
-generations/flights, used to draw flight lines. Overrides any interval
-stored on \code{pheno_data} or looked up via \code{pest}.}
+\item{custom_flight_interval}{Deprecated alias for custom_thermal_requirement.}
 
-\item{custom_pest_label}{Character. Custom pest label for the plot title
-when \code{pest} is not found in the built-in database.}
-}
-\value{
-A \code{ggplot} object.
+\item{custom_pest_label}{Optional title label.}
 }
 \description{
-Plot Pest Phenology as Trap Catch vs. Accumulated Degree-Days
+Plot trap catches against the calculated DD index
+}
+\details{
+When a thermal marker is selected, the subtitle displays its value.
+A matching database reference supplies the developmental endpoint; otherwise
+the endpoint is reported as unspecified. The caption explains the reference
+and distinguishes first-capture multiples from observed generations.
+Database requirements are not automatically selected as markers.
 }

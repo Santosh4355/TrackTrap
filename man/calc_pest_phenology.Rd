@@ -2,7 +2,7 @@
 % Please edit documentation in R/phenology.R
 \name{calc_pest_phenology}
 \alias{calc_pest_phenology}
-\title{Calculate Pest Phenology from Trap Counts and Weather Data}
+\title{Calculate a simple-average degree-day index for trap observations}
 \usage{
 calc_pest_phenology(
   trap_data,
@@ -13,48 +13,54 @@ calc_pest_phenology(
   cimis_csv_path = NULL,
   custom_lower = NULL,
   custom_upper = NULL,
+  custom_thermal_requirement = NULL,
   custom_flight_interval = NULL,
-  custom_pest_label = NULL
+  custom_pest_label = NULL,
+  upper_cutoff = c("explicit", "none", "horizontal"),
+  weather_data = NULL,
+  weather_provenance = NULL,
+  timezone = "auto",
+  open_meteo_model = "era5_land",
+  database = NULL
 )
 }
 \arguments{
-\item{trap_data}{A data frame with columns \code{date} (character, \code{M/D/YYYY}
-format) and \code{trap_counts} (numeric).}
+\item{trap_data}{Data frame with date and trap_counts, one row per date.}
 
-\item{pest}{Character. A pest code (e.g., \code{"OLFF"}) checked against the
-built-in \code{pest_thresholds} database. Optional if both \code{custom_lower}
-and \code{custom_upper} are provided.}
+\item{pest}{Optional database code.}
 
-\item{lat}{Numeric. Latitude of the trap location. Required when
-\code{weather_source} is \code{"open_meteo"} or \code{"daymet"}.}
+\item{lat, lon}{Weather coordinates.}
 
-\item{lon}{Numeric. Longitude of the trap location. Required when
-\code{weather_source} is \code{"open_meteo"} or \code{"daymet"}.}
+\item{weather_source}{open_meteo, daymet, cimis_csv, or supplied.}
 
-\item{weather_source}{Character. One of \code{"open_meteo"}, \code{"daymet"}, or
-\code{"cimis_csv"}. Defaults to \code{"open_meteo"}.}
+\item{cimis_csv_path}{Path to CIMIS Fahrenheit daily report.}
 
-\item{cimis_csv_path}{Character. File path to a manually downloaded CIMIS
-daily CSV report. Required when \code{weather_source = "cimis_csv"}.}
+\item{custom_lower, custom_upper}{Optional Fahrenheit threshold overrides.}
 
-\item{custom_lower}{Numeric. Custom lower developmental threshold (°F).
-Overrides the database value if \code{pest} is also provided.}
+\item{custom_thermal_requirement}{Optional user-defined thermal marker (Fahrenheit DD).}
 
-\item{custom_upper}{Numeric. Custom upper developmental threshold (°F).
-Pass \code{NA} explicitly (or leave the database value as \code{NA}) to calculate
-degree-days without an upper cutoff.}
+\item{custom_flight_interval}{Deprecated alias for custom_thermal_requirement.}
 
-\item{custom_flight_interval}{Numeric. Custom degree-day interval between
-pest generations/flights, used for plotting flight lines.}
+\item{custom_pest_label}{Optional plot label.}
 
-\item{custom_pest_label}{Character. Custom label used in plot titles when
-\code{pest} is not found in the built-in database.}
+\item{upper_cutoff}{"explicit", "none", or "horizontal". Missing database
+upper thresholds require an explicit "none" choice or a supplied upper.}
+
+\item{weather_data}{Optional daily Date, tmin, tmax data in Fahrenheit.}
+
+\item{weather_provenance}{Description of provided temperatures/station/time convention.}
+
+\item{timezone, open_meteo_model}{Open-Meteo settings.}
+
+\item{database}{Optional database; defaults to TrackTrap::pest_thresholds.}
 }
 \value{
-A data frame combining \code{trap_data} with merged weather and
-degree-day columns, including \code{cumulative_dd} and
-\code{cumulative_dd_from_biofix}.
+Original data frame.
 }
 \description{
-Calculate Pest Phenology from Trap Counts and Weather Data
+Calculate a simple-average degree-day index for trap observations
+}
+\details{
+Biofix is always the first positive trap count; its DD is excluded.
+Daily DD is max(min(mean temperature, upper) - lower, 0), or no upper cap.
 }

@@ -1,0 +1,22 @@
+library(TrackTrap)
+
+# patch the in-memory copy for this session only
+assignInNamespace("pest_thresholds",
+  local({
+    pt <- TrackTrap::pest_thresholds
+    pt$flight_interval_dd[pt$pest_code == "FAW"] <- 734.89
+    pt
+  }),
+  ns = "TrackTrap"
+)
+
+# now rerun as before — plot_trap_phenology() will read the patched value
+pheno_data <- TrackTrap::calc_pest_phenology(
+  trap_data      = trap_data,
+  pest           = "FAW",
+  lat            = 37.1009,
+  lon            = -87.853,
+  weather_source = "daymet"
+)
+
+TrackTrap::plot_trap_phenology(pheno_data, pest = "FAW")

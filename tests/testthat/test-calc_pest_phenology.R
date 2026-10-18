@@ -1,864 +1,137 @@
-test_that(
-  "biofix is correctly set to zero and cumulative degree days agree with manually calculated values",
-  {
-    dates <- seq(
-      as.Date("2024-04-01"),
-      as.Date("2024-05-15"),
-      by = "day"
-    )
-    
-    csv_path <- make_cimis_csv(
-      dates,
-      tmax = 85,
-      tmin = 55
-    )
-    
-    trap_df <- data.frame(
-      date = c("4/1/2024", "4/8/2024", "4/15/2024", "4/22/2024"),
-      trap_counts = c(0, 0, 3, 9)
-    )
-    
-    result <- calc_pest_phenology(
-      trap_df,
-      pest = "OLFF",
-      weather_source = "cimis_csv",
-      cimis_csv_path = csv_path
-    )
-    
-    expect_s3_class(result, "data.frame")
-    expect_true("cumulative_dd_from_biofix" %in% names(result))
-    
-    biofix_row <- result[
-      result$date == as.Date("2024-04-15"),
-      ,
-      drop = FALSE
-    ]
-    
-    expect_equal(
-      biofix_row$cumulative_dd_from_biofix,
-      0
-    )
-    
-    row_01 <- result[
-      result$date == as.Date("2024-04-22"),
-      ,
-      drop = FALSE
-    ]
-    
-    expect_equal(row_01$cumulative_dd, 220)
-    expect_equal(row_01$cumulative_dd_from_biofix, 70)
-    
-    row_02 <- result[
-      result$date == as.Date("2024-04-01"),
-      ,
-      drop = FALSE
-    ]
-    
-    expect_equal(row_02$cumulative_dd, 10)
-    expect_equal(row_02$cumulative_dd_from_biofix, -140)
-  }
-)
+test_that("biofix exclusion and cumulative DD match hand calculations", {
+  dates <- seq(as.Date("2024-04-01"), as.Date("2024-04-22"), by = "day")
+  path <- make_cimis_csv(dates)
+  on.exit(unlink(path), add = TRUE)
+  trap <- data.frame(date = dates[c(1, 8, 15, 22)], trap_counts = c(0, 0, 3, 9))
+  x <- calc_pest_phenology(trap, custom_lower = 60, upper_cutoff = "none",
+                           weather_source = "cimis_csv", cimis_csv_path = path)
+  expect_equal(x$DD, rep(10, 4))
+  expect_equal(x$cumulative_dd, c(10, 80, 150, 220))
+  expect_equal(x$cumulative_dd_from_biofix, c(NA_real_, NA_real_, 0, 70))
+  expect_equal(attr(x, "daily_weather")$Date, dates)
+  expect_equal(attr(x, "daily_weather")$DD, rep(10, 22))
+  meta <- attr(x, "calculation_metadata")
+  expect_identical(meta$biofix_rule, "first_capture")
+  expect_false(meta$include_biofix_day)
+  expect_equal(meta$weather_start, "2024-04-01")
+  expect_equal(meta$accumulation_start, "2024-04-16")
+})
 
-test_that(
-  "upper threshold caps daily degree days as expected",
-  {
-    dates <- seq(
-      as.Date("2024-04-01"),
-      as.Date("2024-04-10"),
-      by = "day"
-    )
-    
-    csv_path <- make_cimis_csv(
-      dates,
-      tmax = 110,
-      tmin = 90
-    )
-    
-    trap_df <- data.frame(
-      date = c("4/1/2024", "4/10/2024"),
-      trap_counts = c(1, 0)
-    )
-    
-    result <- calc_pest_phenology(
-      trap_df,
-      pest = "OLFF",
-      weather_source = "cimis_csv",
-      cimis_csv_path = csv_path
-    )
-    
-    expect_equal(
-      result$cumulative_dd[
-        result$date == as.Date("2024-04-01")
-      ],
-      35
-    )
-    
-    expect_true(attr(result, "upper_thresh_defined"))
-  }
-)
+test_that("daily-mean upper capping and zero flooring are correct", {
+  dates <- as.Date("2024-04-01") + 0:2
+  trap <- data.frame(date = dates, trap_counts = c(1, 0, 2))
+  # Day 2 distinguishes capping the mean from capping Tmax separately.
+  weather <- data.frame(Date = dates, tmin = c(40, 50, 90), tmax = c(50, 110, 110))
+  x <- calc_pest_phenology(trap, custom_lower = 60, custom_upper = 90,
+                           upper_cutoff = "horizontal", weather_data = weather,
+                           weather_provenance = "Synthetic test data")
+  expect_equal(x$DD, c(0, 20, 30))
+  expect_equal(x$cumulative_dd_from_biofix, c(0, 20, 50))
+  expect_true(attr(x, "upper_thresh_defined"))
+})
 
-test_that(
-  "lower threshold floors daily degree days at zero below the base temperature",
-  {
-    dates <- seq(
-      as.Date("2024-04-01"),
-      as.Date("2024-04-10"),
-      by = "day"
-    )
-    
-    csv_path <- make_cimis_csv(
-      dates,
-      tmax = 55,
-      tmin = 45
-    )
-    
-    trap_df <- data.frame(
-      date = c("4/1/2024", "4/10/2024"),
-      trap_counts = c(1, 0)
-    )
-    
-    result <- calc_pest_phenology(
-      trap_df,
-      pest = "OLFF",
-      weather_source = "cimis_csv",
-      cimis_csv_path = csv_path
-    )
-    
-    expect_equal(
-      result$cumulative_dd[
-        result$date == as.Date("2024-04-01")
-      ],
-      0
-    )
-  }
-)
+test_that("missing upper requires explicit selection and NA alone is insufficient", {
+  trap <- data.frame(date = as.Date("2024-04-01") + 0:1, trap_counts = c(1, 2))
+  weather <- data.frame(Date = trap$date, tmin = 100, tmax = 120)
+  expect_error(calc_pest_phenology(trap, custom_lower = 50, custom_upper = NA_real_),
+               "Upper threshold is unknown", fixed = TRUE)
+  x <- calc_pest_phenology(trap, custom_lower = 50, custom_upper = NA_real_,
+                           upper_cutoff = "none", weather_data = weather, weather_provenance = "Synthetic")
+  expect_equal(x$DD, c(60, 60))
+  expect_equal(x$cumulative_dd_from_biofix, c(0, 60))
+  expect_false(attr(x, "upper_thresh_defined"))
+  expect_error(calc_pest_phenology(trap, custom_lower = 50, custom_upper = 90,
+                                   upper_cutoff = "none"), "conflicts", fixed = TRUE)
+  expect_error(calc_pest_phenology(trap, custom_lower = 50, custom_upper = 50,
+                                   upper_cutoff = "horizontal"), "greater than the lower", fixed = TRUE)
+})
 
-test_that(
-  "both M/D/YYYY and MM/DD/YYYY trap dates parse identically",
-  {
-    dates <- seq(
-      as.Date("2024-04-01"),
-      as.Date("2024-04-30"),
-      by = "day"
-    )
-    
-    csv_path <- make_cimis_csv(
-      dates,
-      tmax = 85,
-      tmin = 55
-    )
-    
-    trap_df_unpadded <- data.frame(
-      date = c("4/1/2024", "4/15/2024"),
-      trap_counts = c(0, 3)
-    )
-    
-    trap_df_padded <- data.frame(
-      date = c("04/01/2024", "04/15/2024"),
-      trap_counts = c(0, 3)
-    )
-    
-    result_unpadded <- calc_pest_phenology(
-      trap_df_unpadded,
-      pest = "OLFF",
-      weather_source = "cimis_csv",
-      cimis_csv_path = csv_path
-    )
-    
-    result_padded <- calc_pest_phenology(
-      trap_df_padded,
-      pest = "OLFF",
-      weather_source = "cimis_csv",
-      cimis_csv_path = csv_path
-    )
-    
-    expect_equal(
-      result_unpadded$cumulative_dd_from_biofix,
-      result_padded$cumulative_dd_from_biofix
-    )
-  }
-)
+test_that("database overrides retain remaining parameters and provenance", {
+  db <- data.frame(pest_code = "TEST", pest_name = "Synthetic pest",
+                   lower_thresh = 50, upper_thresh = 90, thermal_requirement_dd = 100,
+                   thermal_requirement_endpoint = "Synthetic endpoint", lower_source = "Synthetic source")
+  trap <- data.frame(date = as.Date("2024-04-01") + 0:1, trap_counts = c(1, 2))
+  weather <- data.frame(Date = trap$date, tmin = 55, tmax = 85)
+  x <- calc_pest_phenology(trap, pest = "TEST", database = db, custom_lower = 65,
+                           weather_data = weather, weather_provenance = "Synthetic")
+  meta <- attr(x, "calculation_metadata")
+  expect_equal(x$DD, c(5, 5))
+  expect_equal(meta$upper_thresh, 90)
+  expect_equal(meta$lower_thresh, 65)
+  expect_equal(meta$database_record$lower_source, "Synthetic source")
+  expect_true(is.na(attr(x, "thermal_requirement_dd")))
+  db$lower_thresh <- NA_real_
+  expect_error(calc_pest_phenology(trap, pest = "TEST", database = db),
+               "No lower threshold available", fixed = TRUE)
+  expect_error(calc_pest_phenology(trap, pest = "UNKNOWN", database = db,
+                                   custom_lower = 50, upper_cutoff = "none"), "Unknown pest code", fixed = TRUE)
+  expect_error(calc_pest_phenology(trap), "No lower threshold available", fixed = TRUE)
+})
 
-test_that(
-  "invalid trap date format names the offending value",
-  {
-    trap_df <- data.frame(
-      date = c("4/1/2024", "2024-04-08"),
-      trap_counts = c(0, 3)
-    )
-    
-    expect_error(
-      calc_pest_phenology(
-        trap_df,
-        pest = "OLFF",
-        weather_source = "cimis_csv",
-        cimis_csv_path = tempfile(fileext = ".csv")
-      ),
-      regexp = "2024-04-08"
-    )
-  }
-)
-
-test_that(
-  "invalid CIMIS date format produces a clear error",
-  {
-    dates <- seq(
-      as.Date("2024-04-01"),
-      as.Date("2024-04-10"),
-      by = "day"
-    )
-    
-    csv_path <- make_cimis_csv(
-      dates,
-      tmax = 85,
-      tmin = 55,
-      date_fmt = "%Y-%m-%d"
-    )
-    
-    trap_df <- data.frame(
-      date = c("4/1/2024", "4/8/2024"),
-      trap_counts = c(0, 3)
-    )
-    
-    expect_error(
-      calc_pest_phenology(
-        trap_df,
-        pest = "OLFF",
-        weather_source = "cimis_csv",
-        cimis_csv_path = csv_path
-      ),
-      regexp = "Could not parse|MM/DD/YYYY|M/D/YYYY"
-    )
-  }
-)
-
-test_that(
-  "missing pest and missing custom thresholds produce an error",
-  {
-    trap_df <- data.frame(
-      date = c("4/1/2024", "4/8/2024"),
-      trap_counts = c(0, 3)
-    )
-    
-    expect_error(
-      calc_pest_phenology(
-        trap_df,
-        weather_source = "cimis_csv",
-        cimis_csv_path = tempfile(fileext = ".csv")
-      ),
-      regexp = "custom_lower.*custom_upper|pest.*code"
-    )
-  }
-)
-
-test_that(
-  "listed pest with one custom threshold uses the database value for the other threshold",
-  {
-    dates <- seq(
-      as.Date("2024-04-01"),
-      as.Date("2024-04-10"),
-      by = "day"
-    )
-    
-    csv_path <- make_cimis_csv(
-      dates,
-      tmax = 85,
-      tmin = 55
-    )
-    
-    trap_df <- data.frame(
-      date = c("4/1/2024", "4/8/2024"),
-      trap_counts = c(0, 3)
-    )
-    
-    expect_message(
-      result <- calc_pest_phenology(
-        trap_df,
-        pest = "OLFF",
-        weather_source = "cimis_csv",
-        cimis_csv_path = csv_path,
-        custom_lower = 65
-      ),
-      regexp = "Lower = 65"
-    )
-    
-    expect_s3_class(result, "data.frame")
-    
-    expect_equal(
-      result$cumulative_dd[
-        result$date == as.Date("2024-04-01")
-      ],
-      5
-    )
-    
-    expect_true(attr(result, "upper_thresh_defined"))
-  }
-)
-
-test_that(
-  "unknown pest code without custom thresholds produces an error",
-  {
-    trap_df <- data.frame(
-      date = c("4/1/2024", "4/8/2024"),
-      trap_counts = c(0, 3)
-    )
-    
-    expect_error(
-      calc_pest_phenology(
-        trap_df,
-        pest = "NOT_A_PEST_LISTED",
-        weather_source = "cimis_csv",
-        cimis_csv_path = tempfile(fileext = ".csv")
-      ),
-      regexp = "not found"
-    )
-  }
-)
-
-test_that(
-  "unknown pest code with only one custom threshold still produces an error",
-  {
-    trap_df <- data.frame(
-      date = c("4/1/2024", "4/8/2024"),
-      trap_counts = c(0, 3)
-    )
-    
-    expect_error(
-      calc_pest_phenology(
-        trap_df,
-        pest = "NOT_A_PEST_LISTED",
-        weather_source = "cimis_csv",
-        cimis_csv_path = tempfile(fileext = ".csv"),
-        custom_lower = 50
-      ),
-      regexp = "not found|custom_upper"
-    )
-  }
-)
-
-test_that(
-  "unknown pest code with custom thresholds succeeds and computes expected degree days",
-  {
-    dates <- seq(
-      as.Date("2024-04-01"),
-      as.Date("2024-04-10"),
-      by = "day"
-    )
-    
-    csv_path <- make_cimis_csv(
-      dates,
-      tmax = 85,
-      tmin = 55
-    )
-    
-    trap_df <- data.frame(
-      date = c("4/1/2024", "4/8/2024"),
-      trap_counts = c(0, 3)
-    )
-    
-    result <- calc_pest_phenology(
-      trap_df,
-      pest = "NOT_A_PEST_LISTED",
-      weather_source = "cimis_csv",
-      cimis_csv_path = csv_path,
-      custom_lower = 50,
-      custom_upper = 90,
-      custom_pest_label = "Test Pest"
-    )
-    
-    expect_s3_class(result, "data.frame")
-    
-    expect_equal(
-      attr(result, "pest_label"),
-      "Test Pest (NOT_A_PEST_LISTED)"
-    )
-    
-    expect_equal(
-      result$cumulative_dd[
-        result$date == as.Date("2024-04-01")
-      ],
-      20
-    )
-  }
-)
-
-test_that(
-  "unknown pest code without a custom label falls back to the normalized raw code",
-  {
-    dates <- seq(
-      as.Date("2024-04-01"),
-      as.Date("2024-04-10"),
-      by = "day"
-    )
-    
-    csv_path <- make_cimis_csv(
-      dates,
-      tmax = 85,
-      tmin = 55
-    )
-    
-    trap_df <- data.frame(
-      date = c("4/1/2024", "4/8/2024"),
-      trap_counts = c(0, 3)
-    )
-    
-    result <- calc_pest_phenology(
-      trap_df,
-      pest = "not_a_pest_listed",
-      weather_source = "cimis_csv",
-      cimis_csv_path = csv_path,
-      custom_lower = 50,
-      custom_upper = 90
-    )
-    
-    expect_equal(
-      attr(result, "pest_label"),
-      "NOT_A_PEST_LISTED"
-    )
-  }
-)
-
-test_that(
-  "missing required CIMIS columns identify the missing column",
-  {
-    dates <- seq(
-      as.Date("2024-04-01"),
-      as.Date("2024-04-10"),
-      by = "day"
-    )
-    
-    cimis_data <- data.frame(
-      Date = format(dates, "%m/%d/%Y"),
-      Max.Air.Temp..F. = rep(85, length(dates)),
-      check.names = FALSE
-    )
-    
-    csv_path <- tempfile(fileext = ".csv")
-    
-    utils::write.csv(
-      cimis_data,
-      csv_path,
-      row.names = FALSE
-    )
-    
-    trap_df <- data.frame(
-      date = c("4/1/2024", "4/8/2024"),
-      trap_counts = c(0, 3)
-    )
-    
-    expect_error(
-      calc_pest_phenology(
-        trap_df,
-        pest = "OLFF",
-        weather_source = "cimis_csv",
-        cimis_csv_path = csv_path
-      ),
-      regexp = "Min\\.Air\\.Temp\\.\\.F\\."
-    )
-  }
-)
-
-test_that(
-  "missing trap_counts column produces an error",
-  {
-    trap_df <- data.frame(
-      date = c("4/1/2024", "4/8/2024")
-    )
-    
-    dates <- seq(
-      as.Date("2024-04-01"),
-      as.Date("2024-04-10"),
-      by = "day"
-    )
-    
-    csv_path <- make_cimis_csv(
-      dates,
-      tmax = 85,
-      tmin = 55
-    )
-    
-    expect_error(
-      calc_pest_phenology(
-        trap_df,
-        pest = "OLFF",
-        weather_source = "cimis_csv",
-        cimis_csv_path = csv_path
-      )
-    )
-  }
-)
-
-test_that(
-  "cimis_csv weather source requires cimis_csv_path",
-  {
-    trap_df <- data.frame(
-      date = c("4/1/2024", "4/8/2024"),
-      trap_counts = c(0, 3)
-    )
-    
-    expect_error(
-      calc_pest_phenology(
-        trap_df,
-        pest = "OLFF",
-        weather_source = "cimis_csv"
-      ),
-      regexp = "cimis_csv_path"
-    )
-  }
-)
-
-test_that(
-  "open_meteo weather source requires latitude and longitude",
-  {
-    trap_df <- data.frame(
-      date = c("4/1/2024", "4/8/2024"),
-      trap_counts = c(0, 3)
-    )
-    
-    expect_error(
-      calc_pest_phenology(
-        trap_df,
-        pest = "OLFF",
-        weather_source = "open_meteo"
-      ),
-      regexp = "Latitude and longitude"
-    )
-  }
-)
-
-test_that(
-  "open_meteo attempts a live fetch when latitude and longitude are supplied",
-  {
-    skip_if_offline()
-    skip_on_cran()
-    
-    trap_df <- data.frame(
-      date = c(
-        format(Sys.Date() - 20, "%m/%d/%Y"),
-        format(Sys.Date() - 5, "%m/%d/%Y")
-      ),
-      trap_counts = c(0, 3)
-    )
-    
-    result <- tryCatch(
-      calc_pest_phenology(
-        trap_df,
-        pest = "OLFF",
-        weather_source = "open_meteo",
-        lat = 36.3302,
-        lon = -119.2921
-      ),
-      error = function(e) e
-    )
-    
-    if (inherits(result, "error")) {
-      skip(
-        paste(
-          "Open-Meteo is unavailable in this environment:",
-          conditionMessage(result)
-        )
-      )
+test_that("supported trap and CIMIS date formats agree", {
+  dates <- as.Date("2024-04-01") + 0:1
+  for (fmt in c("%m/%d/%Y", "%Y-%m-%d")) {
+    path <- make_cimis_csv(dates, date_fmt = fmt)
+    for (input in list(dates, c("4/1/2024", "4/2/2024"),
+                       c("04/01/2024", "04/02/2024"), as.character(dates))) {
+      x <- calc_pest_phenology(data.frame(date = input, trap_counts = c(1, 2)),
+                               custom_lower = 50, upper_cutoff = "none", weather_source = "cimis_csv",
+                               cimis_csv_path = path)
+      expect_equal(x$date, dates)
+      expect_equal(x$cumulative_dd_from_biofix, c(0, 20))
     }
-    
-    expect_s3_class(result, "data.frame")
-    
-    expect_true(
-      all(
-        c(
-          "cumulative_dd",
-          "cumulative_dd_from_biofix"
-        ) %in% names(result)
-      )
-    )
+    unlink(path)
   }
-)
+})
 
-test_that(
-  "Daymet requires latitude and longitude and rejects current-year dates",
-  {
-    trap_df <- data.frame(
-      date = c(
-        format(Sys.Date() - 10, "%m/%d/%Y"),
-        format(Sys.Date(), "%m/%d/%Y")
-      ),
-      trap_counts = c(0, 3)
-    )
-    
-    expect_error(
-      calc_pest_phenology(
-        trap_df,
-        pest = "OLFF",
-        weather_source = "daymet"
-      ),
-      regexp = "Latitude and longitude"
-    )
-    
-    expect_error(
-      calc_pest_phenology(
-        trap_df,
-        pest = "OLFF",
-        weather_source = "daymet",
-        lat = 36.33,
-        lon = -119.29
-      ),
-      regexp = "previous calendar year"
-    )
+test_that("invalid trap inputs fail before retrieval", {
+  trap <- data.frame(date = c("2024-04-01", "2024-04-02"), trap_counts = c(1, 2))
+  for (bad in c("2024-04-02junk", "02-Apr-2024", "2024-02-30")) {
+    broken <- trap; broken$date[2] <- bad
+    expect_error(calc_pest_phenology(broken, custom_lower = 50, upper_cutoff = "none"),
+                 "[Dd]ates")
   }
-)
+  expect_error(calc_pest_phenology(trap["date"]), "trap_counts", fixed = TRUE)
+  for (counts in list(c(-1, 2), c(1.5, 2), c(NA, 2), c("zero", "three"))) {
+    broken <- trap; broken$trap_counts <- counts
+    expect_error(calc_pest_phenology(broken), "[Tt]rap.*count")
+  }
+  broken <- trap; broken$date[2] <- broken$date[1]
+  expect_error(calc_pest_phenology(broken), "one row per date", fixed = TRUE)
+  broken <- trap; broken$date[2] <- "2025-04-02"
+  expect_error(calc_pest_phenology(broken), "monitoring year", fixed = TRUE)
+  broken <- trap; broken$trap_counts <- c(0, 0)
+  expect_error(calc_pest_phenology(broken, custom_lower = 50, upper_cutoff = "none"),
+               "No positive trap catches", fixed = TRUE)
+})
 
-test_that(
-  "invalid weather_source produces an error",
-  {
-    trap_df <- data.frame(
-      date = c("4/1/2024", "4/8/2024"),
-      trap_counts = c(0, 3)
-    )
-    
-    expect_error(
-      calc_pest_phenology(
-        trap_df,
-        pest = "OLFF",
-        weather_source = "not_a_source"
-      ),
-      regexp = "Invalid weather_source"
-    )
+test_that("weather configuration errors are specific", {
+  trap <- data.frame(date = as.Date("2024-04-01") + 0:1, trap_counts = c(1, 2))
+  expect_error(calc_pest_phenology(trap, custom_lower = 50, upper_cutoff = "none",
+                                   weather_source = "cimis_csv"), "Supply cimis_csv_path", fixed = TRUE)
+  for (provider in c("open_meteo", "daymet")) {
+    expect_error(calc_pest_phenology(trap, custom_lower = 50, upper_cutoff = "none",
+                                     weather_source = provider), "lat and lon", fixed = TRUE)
   }
-)
+  expect_error(calc_pest_phenology(trap, custom_lower = 50, upper_cutoff = "none",
+                                   weather_source = "invalid"), "Use open_meteo", fixed = TRUE)
+  weather <- data.frame(Date = trap$date, tmin = 55, tmax = 85)
+  expect_error(calc_pest_phenology(trap, custom_lower = 50, upper_cutoff = "none",
+                                   weather_data = weather), "weather_provenance", fixed = TRUE)
+})
 
-test_that(
-  "no positive trap counts produces a biofix error",
-  {
-    dates <- seq(
-      as.Date("2024-04-01"),
-      as.Date("2024-04-10"),
-      by = "day"
-    )
-    
-    csv_path <- make_cimis_csv(
-      dates,
-      tmax = 85,
-      tmin = 55
-    )
-    
-    trap_df <- data.frame(
-      date = c("4/1/2024", "4/8/2024"),
-      trap_counts = c(0, 0)
-    )
-    
-    expect_error(
-      calc_pest_phenology(
-        trap_df,
-        pest = "OLFF",
-        weather_source = "cimis_csv",
-        cimis_csv_path = csv_path
-      ),
-      regexp = "No positive trap counts"
-    )
+test_that("incomplete or invalid daily weather cannot silently accumulate", {
+  dates <- as.Date("2024-04-01") + 0:2
+  trap <- data.frame(date = dates[c(1, 3)], trap_counts = c(1, 2))
+  good <- data.frame(Date = dates, tmin = 55, tmax = 85)
+  cases <- list(good[-2, ], rbind(good, good[1, ]), good, good)
+  cases[[3]]$tmax[2] <- NA_real_
+  cases[[4]]$tmin[2] <- 95
+  messages <- c("Missing daily weather", "Duplicate daily weather",
+                "Daily tmax contains", "minima exceed maxima")
+  for (i in seq_along(cases)) {
+    expect_error(calc_pest_phenology(trap, custom_lower = 50, upper_cutoff = "none",
+                                     weather_data = cases[[i]], weather_provenance = "Synthetic"),
+                 messages[i], fixed = TRUE)
   }
-)
-
-test_that(
-  "pests without an upper threshold calculate uncapped degree days without NA propagation",
-  {
-    no_upper_pests <- c("MRB", "PBA", "ZMA", "GWB")
-    
-    dates <- seq(
-      as.Date("2024-04-01"),
-      as.Date("2024-04-10"),
-      by = "day"
-    )
-    
-    csv_path <- make_cimis_csv(
-      dates,
-      tmax = 95,
-      tmin = 70
-    )
-    
-    trap_df <- data.frame(
-      date = c("4/1/2024", "4/10/2024"),
-      trap_counts = c(1, 0)
-    )
-    
-    for (code in no_upper_pests) {
-      threshold_row <- TrackTrap::pest_thresholds[
-        TrackTrap::pest_thresholds$pest_code == code,
-        ,
-        drop = FALSE
-      ]
-      
-      expect_true(
-        is.na(threshold_row$upper_thresh),
-        info = sprintf(
-          "Expected %s to have NA upper_thresh in pest_thresholds.",
-          code
-        )
-      )
-      
-      result <- calc_pest_phenology(
-        trap_df,
-        pest = code,
-        weather_source = "cimis_csv",
-        cimis_csv_path = csv_path
-      )
-      
-      expect_false(
-        all(result$cumulative_dd_from_biofix == 0),
-        info = sprintf(
-          "%s incorrectly returned all-zero cumulative degree days.",
-          code
-        )
-      )
-      
-      expect_false(
-        anyNA(result$cumulative_dd),
-        info = sprintf(
-          "%s propagated NA from upper_thresh into cumulative_dd.",
-          code
-        )
-      )
-      
-      expect_false(
-        attr(result, "upper_thresh_defined"),
-        info = sprintf(
-          "%s should report upper_thresh_defined = FALSE.",
-          code
-        )
-      )
-    }
-  }
-)
-
-test_that(
-  "NA upper threshold uses uncapped degree days",
-  {
-    dates <- seq(
-      as.Date("2024-04-01"),
-      as.Date("2024-04-05"),
-      by = "day"
-    )
-    
-    csv_path <- make_cimis_csv(
-      dates,
-      tmax = 120,
-      tmin = 100
-    )
-    
-    trap_df <- data.frame(
-      date = c("4/1/2024", "4/5/2024"),
-      trap_counts = c(1, 0)
-    )
-    
-    result <- calc_pest_phenology(
-      trap_df,
-      pest = "ZMA",
-      weather_source = "cimis_csv",
-      cimis_csv_path = csv_path
-    )
-    
-    zma_lower <- TrackTrap::pest_thresholds$lower_thresh[
-      TrackTrap::pest_thresholds$pest_code == "ZMA"
-    ]
-    
-    expected_daily_dd <- max(
-      ((120 + 100) / 2) - zma_lower,
-      0
-    )
-    
-    day_01_dd <- result$cumulative_dd[
-      result$date == as.Date("2024-04-01")
-    ]
-    
-    expect_equal(
-      day_01_dd,
-      expected_daily_dd,
-      tolerance = 1e-6
-    )
-  }
-)
-
-test_that(
-  "custom_upper = NA uses uncapped calculation for an unlisted pest",
-  {
-    dates <- seq(
-      as.Date("2024-04-01"),
-      as.Date("2024-04-05"),
-      by = "day"
-    )
-    
-    csv_path <- make_cimis_csv(
-      dates,
-      tmax = 100,
-      tmin = 80
-    )
-    
-    trap_df <- data.frame(
-      date = c("4/1/2024", "4/5/2024"),
-      trap_counts = c(1, 0)
-    )
-    
-    result <- calc_pest_phenology(
-      trap_df,
-      pest = "NOT_LISTED_PEST",
-      weather_source = "cimis_csv",
-      cimis_csv_path = csv_path,
-      custom_lower = 50,
-      custom_upper = NA_real_,
-      custom_pest_label = "Test Pest"
-    )
-    
-    expect_false(anyNA(result$cumulative_dd))
-    expect_false(all(result$cumulative_dd == 0))
-    expect_false(attr(result, "upper_thresh_defined"))
-  }
-)
-
-test_that(
-  "defined upper threshold is capped correctly",
-  {
-    dates <- seq(
-      as.Date("2024-04-01"),
-      as.Date("2024-04-05"),
-      by = "day"
-    )
-    
-    csv_path <- make_cimis_csv(
-      dates,
-      tmax = 120,
-      tmin = 100
-    )
-    
-    trap_df <- data.frame(
-      date = c("4/1/2024", "4/5/2024"),
-      trap_counts = c(1, 0)
-    )
-    
-    result <- calc_pest_phenology(
-      trap_df,
-      pest = "OLFF",
-      weather_source = "cimis_csv",
-      cimis_csv_path = csv_path
-    )
-    
-    olff_lower <- TrackTrap::pest_thresholds$lower_thresh[
-      TrackTrap::pest_thresholds$pest_code == "OLFF"
-    ]
-    
-    olff_upper <- TrackTrap::pest_thresholds$upper_thresh[
-      TrackTrap::pest_thresholds$pest_code == "OLFF"
-    ]
-    
-    expected_daily_dd <- olff_upper - olff_lower
-    
-    day_01_dd <- result$cumulative_dd[
-      result$date == as.Date("2024-04-01")
-    ]
-    
-    expect_equal(
-      day_01_dd,
-      expected_daily_dd,
-      tolerance = 1e-6
-    )
-    
-    expect_true(attr(result, "upper_thresh_defined"))
-  }
-)
+})

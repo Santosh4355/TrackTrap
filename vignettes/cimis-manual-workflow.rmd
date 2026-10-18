@@ -13,78 +13,191 @@ knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
 
 ## When to use this
 
-Use `weather_source = "cimis_csv"` when you intend to use station data downloaded manually instead
-of a gridded product (Daymet/Open-Meteo), or when you are working offline and have pre-downloaded data.
+Use `weather_source = "cimis_csv"` to calculate degree-days from a
+manually downloaded station report. This pathway works offline.
 
-## 1. Download the report
+## 1. Prepare the daily report
 
-At the [CIMIS website](https://cimis.water.ca.gov): **Reports** > select
-your station > report type **Daily** > units **English (°F)** > export as
-CSV. The file will include `Date`, `Max Air Temp (F)`, and `Min Air Temp (F)`,
-along with other columns that `calc_pest_phenology()` ignores.
+Download daily maximum and minimum temperatures in Fahrenheit from
+[CIMIS](https://cimis.water.ca.gov).
 
-## 2. Know how `read.csv()` renames columns
+The CSV must contain columns that `read.csv()` reads as:
 
-`read.csv()` processes headers that contain spaces or parentheses:
-`Max Air Temp (F)` becomes `Max.Air.Temp..F.`, and `Min Air Temp (F)` becomes
-`Min.Air.Temp..F.` — exactly the names `calc_pest_phenology()` expects.
+- `Date`
+- `Max.Air.Temp..F.`
+- `Min.Air.Temp..F.`
 
-```{r, eval = TRUE}
-example_path <- system.file("/extdata", "example_cimis_daily.csv", package = "TrackTrap")
-names(read.csv(example_path))
-```
+Provide one weather observation for every day from the first through
+the last trap observation, including days without trap sampling.
+Missing dates, missing temperatures, duplicate daily dates, and
+minimum temperatures exceeding maxima cause an error.
 
-## 3. Confirm the date format
+## 2. Locate and inspect the example
 
-CIMIS exports dates as `MM/DD/YYYY`, which `calc_pest_phenology()` accepts
-directly — no manual conversion needed. Dates should be
-input as `M/D/YYYY` or `MM/DD/YYYY` character strings (e.g., `"4/1/2024"`),
-not as pre-converted `Date` objects. Any date that doesn't match this format
-will cause the function to stop and name the offending value.
+The bundled example, `example_cimis_synthetic_daily.csv`, contains
+synthetic daily temperatures in CIMIS-compatible format for
+April 1–22, 2024. Daily maximum and minimum temperatures are fixed
+at 85°F and 55°F, respectively. These values demonstrate the software
+and do not represent observed station weather.
 
-## 4. Run `calc_pest_phenology()`
+The file is stored in
+`inst/extdata/example_cimis_synthetic_daily.csv` in the package source.
 
-Set `weather_source = "cimis_csv"` exactly (not `"cimis"`).
-
-`calc_pest_phenology()` does **not** read station coordinates from the CSV — it
-only extracts `Date`, `Max.Air.Temp..F.`, and `Min.Air.Temp..F.` from the file.
-
-Because weather data are loaded directly from the local file rather than an API,
-`lat` and `lon` are not required for temperature retrieval. However, any `lat`
-and `lon` passed to `calc_pest_phenology()` are preserved as metadata attributes
-on the output object so that `plot_trap_phenology()` can automatically display
-the location in the plot title. If omitted at this stage, the attributes are set
-to `NULL`.
-
-```{r, eval = TRUE}
+```{r}
 library(TrackTrap)
 
+example_path <- system.file(
+  "extdata",
+  "example_cimis_synthetic_daily.csv",
+  package = "TrackTrap",
+  mustWork = TRUE
+)
+
+example_weather <- read.csv(example_path)
+names(example_weather)
+
+expected_dates <- seq(
+  as.Date("2024-04-01"),
+  as.Date("2024-04-22"),
+  by = "day"
+)
+
+weather_dates <- as.Date(example_weather$Date, format = "%m/%d/%Y")
+
+stopifnot(
+  !anyNA(weather_dates),
+  !anyDuplicated(weather_dates),
+  all(expected_dates %in% weather_dates)
+)
+```
+
+`read.csv()` normally converts a header such as `Max Air Temp (F)`
+to `Max.Air.Temp..F.`. Check the actual column names before calculation.
+
+## 3. Date formats
+
+TrackTrap accepts `YYYY-MM-DD`, `M/D/YYYY`, and
+`MM/DD/YYYY` character dates. Trap dates can also be R `Date` objects.
+
+Invalid or missing dates cause an error.
+
+## 4. Calculate degree-days
+
+This example uses an illustrative lower threshold of 50°F and
+explicitly selects no upper cutoff. These settings demonstrate the
+software; they are not a recommended parameter set for any particular pest.
+
+For a biological application, select documented parameters and a
+calculation method appropriate to the pest and developmental endpoint.
+
+The bundled weather CSV must cover April 1–22, 2024, inclusive,
+for this example to run.
+
+```{r}
 trap_df <- data.frame(
-  date = c("4/1/2024", "4/8/2024", "4/15/2024", "4/22/2024"),
+  date = as.Date(c(
+    "2024-04-01",
+    "2024-04-08",
+    "2024-04-15",
+    "2024-04-22"
+  )),
   trap_counts = c(0, 0, 3, 9)
 )
 
-# Coordinates passed here are stored as attributes for plotting
 result <- calc_pest_phenology(
-  trap_df, pest = "OLFF",
+  trap_data = trap_df,
+  pest = NULL,
   weather_source = "cimis_csv",
   cimis_csv_path = example_path,
-  lat = 36.3302,
-  lon = -119.2921
+  custom_lower = 50,
+  upper_cutoff = "none",
+  custom_pest_label = "Illustrative trap series",
+  weather_provenance = list(
+    data_type = "Synthetic demonstration data",
+    temperature_units = "Fahrenheit",
+    description = "Daily Tmax = 85 and Tmin = 55; not station observations."
+  )
 )
 ```
 
-## 5. Plot it
+Biofix is the first positive trap count: April 15 in this example. Accumulation begins on April 16. Values in cumulative_dd_from_biofix are NA before biofix and zero on the biofix date. The separate cumulative_dd column records accumulation from the first trap observation date. With these synthetic temperatures and a lower threshold of 50°F, daily accumulation is 20°F-days, giving 140°F-days from biofix on April 22.
 
-If coordinates were provided to `calc_pest_phenology()`, `plot_trap_phenology()`
-reads them automatically from the data attributes and displays the location in
-the title. Alternatively, if coordinates were omitted during calculation, you
-can provide `lat` and `lon` directly to `plot_trap_phenology()`.
+When using database parameters, supply `pest` with the relevant code.
+A missing lower threshold requires `custom_lower`. A missing upper
+threshold requires either `custom_upper` or an explicit
+`upper_cutoff = "none"` choice.
 
-```{r, eval = TRUE, fig.width = 7, fig.height = 5}
-# Coordinates are automatically read from the result attributes:
+To apply an upper threshold to the daily mean, use
+`upper_cutoff = "horizontal"` with a finite upper threshold greater
+than the lower threshold.
+
+## 5. Station information
+
+Station coordinates are not extracted from the CSV. Optional `lat`
+and `lon` arguments supplied to `calc_pest_phenology()` are retained
+for plot labelling; they do not change calculations using CSV weather.
+
+Coordinates may also be supplied directly to `plot_trap_phenology()`.
+Use the actual station or monitoring-location coordinates and clearly
+identify which location they represent.
+
+For observed CIMIS data, weather_provenance is optional but recommended. Supply the station identifier, download date, temperature units, and observation-day convention when available. The output also records the CSV filename and checksum. For this example, provenance identifies the temperatures as synthetic..
+
+## 6. Plot the results
+
+Plot trap catches against accumulated degree-days from first capture:
+
+```{r, fig.width = 9, fig.height = 4.5}
 plot_trap_phenology(result)
+```
 
-# Or coordinates can be explicitly provided or overridden here:
-# plot_trap_phenology(result, lat = 36.3302, lon = -119.2921)
+No thermal reference markers are displayed unless a thermal requirement
+is supplied during calculation or plotting.
+
+The following example adds an illustrative reference of 100°F-days.
+This value demonstrates marker placement only; it is not a published
+thermal requirement for a particular pest.
+
+```{r, fig.width = 9, fig.height = 4.5}
+plot_trap_phenology(
+  result,
+  custom_thermal_requirement = 100,
+  repeat_markers = TRUE
+)
+```
+
+When a thermal reference is supplied, the plot automatically adds:
+
+- A subtitle showing its value in Fahrenheit degree-days.
+- The developmental endpoint when the value matches the database
+  reference retained during calculation; otherwise, the subtitle states
+  "developmental endpoint not specified."
+- A caption explaining the thermal reference.
+
+In this synthetic example, no pest database record was selected, so
+the developmental endpoint is unspecified.
+
+Set `repeat_markers = TRUE` to display multiples of the reference value.
+The default, `repeat_markers = FALSE`, displays a single reference marker.
+
+Database thermal requirements are not automatically selected as markers.
+Markers are positioned relative to first capture and do not independently
+establish flight or generation identities. Matching a database value does
+not establish that its original model is compatible with the selected
+calculation method or first-capture biofix.
+
+## 7. Inspect the daily calculations
+
+The returned rows correspond to trap observation dates. Complete
+daily weather and calculations are retained separately as attributes.
+
+```{r}
+daily_calculations <- attr(result, "daily_weather")
+calculation_metadata <- attr(result, "calculation_metadata")
+
+head(daily_calculations)
+calculation_metadata$biofix_date
+calculation_metadata$upper_cutoff
+calculation_metadata$accumulation_start
+calculation_metadata$weather_provenance
 ```

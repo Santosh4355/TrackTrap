@@ -4,9 +4,9 @@
 \name{TrackTrap-package}
 \alias{TrackTrap}
 \alias{TrackTrap-package}
-\title{TrackTrap: Model Cumulative Growing Degree-Days for Pest Monitoring}
+\title{TrackTrap: Calculate and Visualize Degree-Days for Pest Monitoring}
 \description{
-Pest monitoring is crucial, especially during the early season, to understand the distribution and the proliferation of the target pest. Raw count data from pest monitoring/traps can be coupled with derived environmental variables such as growing degree-day ('GDD') to get useful insights about the pest phenology. This package pulls temperature data from the 'Daymet' application programming interface ('API', \url{https://daymet.ornl.gov}), or 'Open-Meteo' ('API', \url{https://open-meteo.com/}) or manual user-supplied CSV file from the California Irrigation Management Information System ('CIMIS', \url{https://cimis.water.ca.gov}), for a user-specified time period and calculates cumulative growing degree-days. Users provide intended date range, pest of concern, and the geographic coordinates of the trap location to track pest emergence and phenology throughout the growing season.
+Combines pest trap observations with daily temperatures to calculate and visualize cumulative degree-days. Temperature inputs include 'Daymet' \url{https://daymet.ornl.gov}, 'Open-Meteo' \url{https://open-meteo.com/}, reports from the California Irrigation Management Information System ('CIMIS') \url{https://cimis.water.ca.gov}, and user-supplied daily weather data. Degree-days are calculated using the simple-average method with either an upper threshold applied to the daily mean or an explicitly selected calculation without an upper cutoff. The first positive trap count defines the biofix for every pest, with accumulation beginning on the following day. Negative daily degree-day values are set to zero. Users can provide temperature thresholds and optional thermal reference values. Thermal reference markers and their multiples do not independently establish flight or generation identities. Complete daily calculations and weather provenance are retained with the output to support reproducibility.
 }
 \author{
 \strong{Maintainer}: Santosh Bhandari \email{santoshbhandari4556@gmail.com}

@@ -1,0 +1,114 @@
+R CMD check log for TrackTrap (unreleased version)
+Run on: 2026-10-18 01:19:25.525156
+R version: R version 4.6.1 (2026-06-24)
+Platform: x86_64-pc-linux-gnu
+OS: Linux / 6.17.0-1017-aws / #17~24.04.1-Ubuntu SMP Tue May 26 21:30:32 UTC 2026 / x86_64
+Command: devtools::check(pkg = /cloud/project/TrackTrap_1.1.0 , args = "--as-cran", error_on = "never")
+
+---- Full R CMD check console output ----
+* using log directory ‘/tmp/RtmpmGsWKl/file3062d8b50f8/TrackTrap.Rcheck’
+* using R version 4.6.1 (2026-06-24)
+* using platform: x86_64-pc-linux-gnu
+* R was compiled by
+    gcc (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0
+    GNU Fortran (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0
+* running under: Ubuntu 24.04.4 LTS
+* using session charset: UTF-8
+* current time: 2026-10-18 01:18:42 UTC
+* using options ‘--no-manual --as-cran’
+* checking for file ‘TrackTrap/DESCRIPTION’ ... OK
+* this is package ‘TrackTrap’ version ‘1.1.0’
+* package encoding: UTF-8
+* checking package namespace information ... OK
+* checking package dependencies ... OK
+* checking if this is a source package ... OK
+* checking if there is a namespace ... OK
+* checking for executable files ... OK
+* checking for hidden files and directories ... OK
+* checking for portable file names ... OK
+* checking for sufficient/correct file permissions ... OK
+* checking whether package ‘TrackTrap’ can be installed ... OK
+* checking installed package size ... OK
+* checking package directory ... OK
+* checking for future file timestamps ... OK
+* checking ‘build’ directory ... OK
+* checking DESCRIPTION meta-information ... OK
+* checking top-level files ... OK
+* checking for left-over files ... OK
+* checking index information ... OK
+* checking package subdirectories ... OK
+* checking code files for non-ASCII characters ... OK
+* checking R files for syntax errors ... OK
+* checking whether the package can be loaded ... OK
+* checking whether the package can be loaded with stated dependencies ... OK
+* checking whether the package can be unloaded cleanly ... OK
+* checking whether the namespace can be loaded with stated dependencies ... OK
+* checking whether the namespace can be unloaded cleanly ... OK
+* checking loading without being on the library search path ... OK
+* checking dependencies in R code ... OK
+* checking S3 generic/method consistency ... OK
+* checking replacement functions ... OK
+* checking foreign function calls ... OK
+* checking R code for possible problems ... OK
+* checking Rd files ... OK
+* checking Rd metadata ... OK
+* checking Rd line widths ... OK
+* checking Rd cross-references ... OK
+* checking for missing documentation entries ... OK
+* checking for code/documentation mismatches ... OK
+* checking Rd \usage sections ... OK
+* checking Rd contents ... OK
+* checking for unstated dependencies in examples ... OK
+* checking contents of ‘data’ directory ... OK
+* checking data for non-ASCII characters ... OK
+* checking LazyData ... OK
+* checking data for ASCII and uncompressed saves ... OK
+* checking installed files from ‘inst/doc’ ... OK
+* checking files in ‘vignettes’ ... OK
+* checking examples ... NONE
+* checking for unstated dependencies in ‘tests’ ... OK
+* checking tests ... OK
+  Running ‘testthat.R’
+* checking for unstated dependencies in vignettes ... OK
+* checking package vignettes ... OK
+* checking re-building of vignette outputs ... OK
+* checking for non-standard things in the check directory ... OK
+* checking for detritus in the temp directory ... OK
+* DONE
+Status: OK
+
+---- sessionInfo() ----
+R version 4.6.1 (2026-06-24)
+Platform: x86_64-pc-linux-gnu
+Running under: Ubuntu 24.04.4 LTS
+
+Matrix products: default
+BLAS:   /usr/lib/x86_64-linux-gnu/openblas-pthread/libblas.so.3 
+LAPACK: /usr/lib/x86_64-linux-gnu/openblas-pthread/libopenblasp-r0.3.26.so;  LAPACK version 3.12.0
+
+locale:
+ [1] LC_CTYPE=C.UTF-8       LC_NUMERIC=C           LC_TIME=C.UTF-8        LC_COLLATE=C.UTF-8    
+ [5] LC_MONETARY=C.UTF-8    LC_MESSAGES=C.UTF-8    LC_PAPER=C.UTF-8       LC_NAME=C             
+ [9] LC_ADDRESS=C           LC_TELEPHONE=C         LC_MEASUREMENT=C.UTF-8 LC_IDENTIFICATION=C   
+
+time zone: UTC
+tzcode source: system (glibc)
+
+attached base packages:
+[1] stats     graphics  grDevices utils     datasets  methods   base     
+
+other attached packages:
+[1] ggplot2_4.0.3   TrackTrap_1.1.0
+
+loaded via a namespace (and not attached):
+ [1] generics_0.1.4     digest_0.6.39      magrittr_2.0.5     evaluate_1.0.5     grid_4.6.1        
+ [6] RColorBrewer_1.1-3 pkgload_1.5.3      fastmap_1.2.0      rprojroot_2.1.1    processx_3.9.0    
+[11] pkgbuild_1.4.8     sessioninfo_1.2.4  rcmdcheck_1.4.0    ps_1.9.3           httr_1.4.9        
+[16] purrr_1.2.2        scales_1.4.0       cli_3.6.6          rlang_1.3.0        ellipsis_0.3.3    
+[21] withr_3.0.3        cachem_1.1.0       yaml_2.3.12        devtools_2.5.2     otel_0.2.0        
+[26] tools_4.6.1        memoise_2.0.1      dplyr_1.2.1        ncdf4_1.24         curl_7.1.0        
+[31] vctrs_0.7.3        R6_2.6.1           lifecycle_1.0.5    fs_2.1.0           usethis_3.2.1     
+[36] xopen_1.0.1        pkgconfig_2.0.3    desc_1.4.3         callr_3.8.0        pillar_1.11.1     
+[41] gtable_0.3.6       glue_1.8.1         xfun_0.59          tibble_3.3.1       tidyselect_1.2.1  
+[46] rstudioapi_0.19.0  knitr_1.51         farver_2.1.2       daymetr_1.7.1      htmltools_0.5.9   
+[51] rmarkdown_2.31     labeling_0.4.3     compiler_4.6.1     prettyunits_1.2.0  S7_0.2.2          

@@ -1,0 +1,74 @@
+
+
+setwd("/cloud/project/TrackTrap_1.0.1")  
+
+pkg_path <- "TrackTrap"
+
+git_commit <- tryCatch(
+  system("git rev-parse HEAD", intern = TRUE),
+  error = function(e) "Not a git repository or git unavailable"
+)
+git_status <- tryCatch(
+  system("git status --short", intern = TRUE),
+  error = function(e) character(0)
+)
+git_remote <- tryCatch(
+  system("git remote get-url origin", intern = TRUE),
+  error = function(e) "No remote configured"
+)
+
+# Build the exact source tarball that will be checked/submitted
+build_path <- devtools::build(pkg = pkg_path, path = ".")
+
+# Run the check (do not stop on errors so we capture the full log)
+check_result <- devtools::check(
+  pkg = pkg_path,
+  args = "--as-cran",
+  error_on = "never",
+  quiet = FALSE
+)
+
+# Pull the RAW console transcript, not just the summary object
+raw_log_path <- file.path(check_result$checkdir, paste0(basename(pkg_path), ".Rcheck"), "00check.log")
+raw_log <- if (file.exists(raw_log_path)) readLines(raw_log_path) else "00check.log not found at expected path"
+
+log_lines <- c(
+  "================================================================",
+  "R CMD check log for TrackTrap (UNPUBLISHED / pre-submission build)",
+  "================================================================",
+  paste("Run on:", Sys.time()),
+  paste("R version:", R.version.string),
+  paste("Platform:", R.version$platform),
+  paste("OS sysname:", Sys.info()["sysname"]),
+  paste("OS release:", Sys.info()["release"]),
+  paste("OS version:", Sys.info()["version"]),
+  paste("Machine arch:", Sys.info()["machine"]),
+  "",
+  "---- Git provenance ----",
+  paste("Commit SHA:", paste(git_commit, collapse = " ")),
+  paste("Remote URL:", paste(git_remote, collapse = " ")),
+  "Working tree status (blank = clean):",
+  if (length(git_status) == 0) "  (clean)" else paste(" ", git_status),
+  "",
+  "---- Command executed ----",
+  paste0('devtools::check(pkg = "', pkg_path, '", args = "--as-cran", error_on = "never")'),
+  "",
+  "---- Source archive built ----",
+  paste("Tarball:", build_path),
+  paste("Tarball MD5:", tools::md5sum(build_path)),
+  "",
+  "---- devtools::check() summary object ----",
+  capture.output(print(check_result)),
+  "",
+  "================================================================",
+  "FULL R CMD check console transcript (00check.log)",
+  "================================================================",
+  raw_log,
+  "",
+  "---- sessionInfo() ----",
+  capture.output(sessionInfo())
+)
+
+writeLines(log_lines, "TrackTrap_check_log_full.txt")
+cat("Saved full verifiable log to:", normalizePath("TrackTrap_check_log_full.txt"), "\n")
+cat("Saved source tarball at:", build_path, "\n")

@@ -3,23 +3,36 @@
 \docType{data}
 \name{pest_thresholds}
 \alias{pest_thresholds}
-\title{Pest Developmental Thresholds}
+\title{Pest temperature thresholds and thermal reference values}
 \format{
-A data frame with 90 rows and 5 columns:
+A data frame with 90 rows and 10 variables:
 \describe{
-\item{pest_code}{Short abbreviation for the pest (e.g., OLFF, NOW).}
-\item{pest_name}{Common name of the pest.}
-\item{lower_thresh}{Lower developmental temperature threshold (°F).}
-\item{upper_thresh}{Upper developmental temperature threshold (°F).}
-\item{flight_interval_dd}{Cumulative degree-days between successive
-flight peaks, used by \code{calc_pest_phenology()} to project
-subsequent flight generations.}
+\item{pest_code}{Unique pest identifier.}
+\item{pest_name}{Common name.}
+\item{scientific_name}{Scientific name.}
+\item{lower_thresh}{Lower temperature threshold in degrees Fahrenheit.}
+\item{upper_thresh}{Upper temperature threshold in degrees Fahrenheit,
+where available.}
+\item{thermal_requirement_dd}{Thermal reference value in Fahrenheit
+degree-days for the stated endpoint; not necessarily a flight interval.}
+\item{lower_source}{Reference supporting the lower threshold.}
+\item{upper_source}{Reference supporting the upper threshold.}
+\item{thermal_requirement_source}{Reference for the thermal value.}
+\item{thermal_requirement_endpoint}{Developmental or phenological
+endpoint associated with the thermal value.}
 }
 }
 \usage{
 pest_thresholds
 }
 \description{
-Pest Developmental Thresholds
+Reference parameters and source information for 90 pest records.
+Missing parameters are stored as NA. Inclusion does not imply that
+a complete or independently validated phenology model is available.
+}
+\details{
+Parameter sources and model compatibility require assessment before
+application. Seasonal event thresholds and developmental requirements
+are not interchangeable.
 }
 \keyword{datasets}
